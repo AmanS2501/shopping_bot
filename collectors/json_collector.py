@@ -104,3 +104,4 @@ class JSONCollector:
                         docs.append(Document(page_content=text, metadata=metadata))
         print(f"[INFO] Loaded and backed up {len(docs)} JSON documents")
         return docs
+
