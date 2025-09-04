@@ -213,3 +213,4 @@ cleaning/cleaned_docs_backup.jsonl
 collectors/pdf_extracted_backup.jsonl
 collectors/json_extracted_backup.jsonl
 chunking/chunked_docs_backup.jsonl
+chromadb_store/
