@@ -53,8 +53,8 @@ def main():
     chroma_db_embedder = ChromaDBEmbedder(persist_directory="chromadb_store")
     chroma_vectorstore = chroma_db_embedder.store_embeddings(embedder, chunked_documents, collection_name="rag_collection")
 
-    # Optional: Example retrieval (similarity search)
-    sample_query = "How do I reset my password?"  # Replace with your test query
+
+    sample_query = "How do I reset my password?"
     results = chroma_db_embedder.similarity_search(sample_query, embedder, k=5)
     for i, result in enumerate(results):
         print(f"[RESULT {i}] Content: {result.page_content}, Metadata: {result.metadata}")
