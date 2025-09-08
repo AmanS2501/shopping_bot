@@ -80,6 +80,7 @@ class Chunker:
             self.word_split
         ]:
             chunks = chunk_fn(documents)
+            print(f"[CHUNKER] Used {chunk_fn.__name__} splitting, produced {len(chunks)} chunks.")
             if len(chunks) > 300:
                 print(f"[CHUNKER] Used {chunk_fn.__name__} splitting, produced {len(chunks)} chunks.")
                 self.backup_jsonl(chunks)
