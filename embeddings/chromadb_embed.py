@@ -37,7 +37,6 @@ class ChromaDBEmbedder:
             return None
 
     def similarity_search(self, query: str, embedder, k: int = 5):
-
         if self.vectorstore is None:
             print("[CHROMADB] Vectorstore not initialized.")
             return []
