@@ -1,5 +1,3 @@
-# chat/chatgroq_rag.py
-
 from typing import List
 from langchain_groq import ChatGroq  # ChatGroq integration [13][14]
 from langchain_core.documents import Document

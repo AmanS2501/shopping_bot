@@ -1,4 +1,3 @@
-# retrieval/simple_retriever.py
 import os
 from typing import List, Tuple
 from langchain_chroma import Chroma  # [3][2]
