@@ -1,139 +1,172 @@
+# import os
+# from dotenv import load_dotenv
+# load_dotenv()
+# from chat.crc_chain import ConversationalRetrievalChain
+# from collectors.pdf_collector import PDFCollector
+# from collectors.json_collector import JSONCollector
+# from cleaning.cleaner import TextCleaner
+# from chunking.chunker import Chunker
+# from embeddings.embedder import Embedder
+# from embeddings.chromadb_embed import ChromaDBEmbedder
+# from chat.history_stage import run_history_stage
+# from chat.rag_stage import run_rag_stage
+# # from router.query_router import classify
+# from retrieval.simple_retriever import load_chroma, retrieve_with_crossencoder_rerank
+# from chat.chatgroq_rag import chatgroq_answer
 
+# PERSIST_DIR = "chromadb_store"
+# COLLECTION_NAME = "rag_collection"
+# CROSSENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+# POOL_K = int(os.getenv("RETRIEVER_POOL_K", "40"))
+# TOP_K = int(os.getenv("RETRIEVER_TOP_K", "5"))
+# CHAT_MODEL = os.getenv("CHAT_MODEL", "openai/gpt-oss-120b")
+# HISTORY_PROMPT = os.getenv("HISTORY_PROMPT", "prompts/history_prompt.json")
+# RAG_PROMPT = os.getenv("RAG_PROMPT", "prompts/rag_prompt.json")
+
+
+# def format_sources(docs):
+#     srcs = []
+#     for d in docs:
+#         title = d.metadata.get("title") or d.metadata.get("source") or "doc"
+#         srcs.append(title)
+#     return srcs
+
+# def format_history(history):
+#     """
+#     Convert chat_history list into a compact text block
+#     to condition follow-up turns. Each item is a dict with keys:
+#     {'role': 'user'|'assistant', 'content': '...'}
+#     """
+#     if not history:
+#         return ""
+#     lines = []
+#     for turn in history:
+#         role = "User" if turn["role"] == "user" else "Assistant"
+#         lines.append(f"{role}: {turn['content']}")
+#     return "\n".join(lines)
+
+
+# def main():
+#     print("[PIPELINE] Starting data collection pipeline...")
+
+#     data_dir = os.getenv("DATA_DIR", "data")
+#     # Optional first-run ingestion (uncomment to enable)
+#     # pdf_documents = PDFCollector().load(data_dir)
+#     # json_documents = JSONCollector().load(data_dir)
+#     # all_raw_documents = pdf_documents + json_documents
+#     # cleaned = TextCleaner().clean_documents(all_raw_documents)
+#     # chunks = Chunker().chunk_documents(cleaned)
+#     embedder = Embedder()
+#     persist_abs = os.path.abspath(PERSIST_DIR)
+#     # ChromaDBEmbedder(persist_directory=persist_abs).store_embeddings(
+#     #     embedder, chunks, collection_name=COLLECTION_NAME
+#     # )
+
+#     vs = load_chroma(persist_abs, embedder.embedder, COLLECTION_NAME)
+#     try:
+#         print(f"[DEBUG] Reopened collection count: {vs._collection.count()}")
+#     except Exception:
+#         pass
+
+#     crc = ConversationalRetrievalChain(
+#         crc_prompt_path=os.getenv("CRC_PROMPT", "prompts/crc_prompts.json"),
+#         crossencoder_model=CROSSENCODER_MODEL,
+#         pool_k=POOL_K,
+#         top_k=TOP_K,
+#     )
+
+#     chat_history: List[dict] = []
+#     print("\n[CHAT] Ask your shopping questions. Type 'exit' to quit.\n")
+#     while True:
+#         user_q = input("Enter your query: ").strip()
+#         if user_q.lower() in {"exit", "quit"}:
+#             print("[CHAT] Bye.")
+#             break
+
+#         out = crc.invoke(question=user_q, history=chat_history, chroma=vs)
+#         print("\n[ANSWER]\n", out["answer"])
+#         print("\n[SOURCES]")
+#         if out["docs"]:
+#             for i, d in enumerate(out["docs"]):
+#                 print(f"{i+1}. {d.metadata}")
+#         else:
+#             print("-")
+
+#         chat_history.append({"role": "user", "content": user_q})
+#         chat_history.append({"role": "assistant", "content": out["answer"]})
+#     print("[PIPELINE] Done")
+
+
+
+# if __name__ == "__main__":
+#     main()
+
+
+# #conversational retrieval chain with history and RAG
+
+# # from langchain_core.runnables.history import RunnableWithMessageHistory
+# # from langchain_core.chat_history import BaseChatMessageHistory
+# # from langchain_community.chat_message_histories import ChatMessageHistory
+# # from langchain_core.callbacks import CallbackManager
+
+# # runnables
+
+
+# main.py (patched snippet)
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
-
-# Existing pipeline imports
-from collectors.pdf_collector import PDFCollector
-from collectors.json_collector import JSONCollector
-from cleaning.cleaner import TextCleaner
-from chunking.chunker import Chunker
 from embeddings.embedder import Embedder
 from embeddings.chromadb_embed import ChromaDBEmbedder
+from retrieval.simple_retriever import load_chroma, retrieve_with_crossencoder_rerank
 
+from chat.crc_langchain import CRC
 
-# New imports for retrieval + ChatGroq
-from retrieval.simple_retriever import load_chroma, retrieve_with_crossencoder_rerank  # modern reopen [1]
-from chat.chatgroq_rag import chatgroq_answer  # ChatGroq chain 
-
-
-# ----------------------------
-# Config
-# ----------------------------
 PERSIST_DIR = "chromadb_store"
 COLLECTION_NAME = "rag_collection"
-CROSSENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # small, fast reranker 
-POOL_K = 40
-TOP_K = 5
-
-
-def format_history(history):
-    """
-    Convert chat_history list into a compact text block
-    to condition follow-up turns. Each item is a dict with keys:
-    {'role': 'user'|'assistant', 'content': '...'}
-    """
-    if not history:
-        return ""
-    lines = []
-    for turn in history:
-        role = "User" if turn["role"] == "user" else "Assistant"
-        lines.append(f"{role}: {turn['content']}")
-    return "\n".join(lines)
-
+CROSSENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+POOL_K = int(os.getenv("RETRIEVER_POOL_K", "60"))
+TOP_K = int(os.getenv("RETRIEVER_TOP_K", "5"))
 
 def main():
     print("[PIPELINE] Starting data collection pipeline...")
 
-    # 1) Collect
-    data_dir = os.getenv("DATA_DIR", "data")
-    # pdf_collector = PDFCollector()
-    # json_collector = JSONCollector()
-    # pdf_documents = pdf_collector.load(data_dir)
-    # print(f"[PIPELINE] Collected {len(pdf_documents)} raw PDF documents")
-    # json_documents = json_collector.load(data_dir)
-    # print(f"[PIPELINE] Collected {len(json_documents)} raw JSON documents")
-    # all_raw_documents = pdf_documents + json_documents
-    # print(f"[PIPELINE] Total collected raw documents: {len(all_raw_documents)}")
-
-    # # 2) Clean
-    # cleaner = TextCleaner()
-    # cleaned_documents = cleaner.clean_documents(all_raw_documents)
-    # cleaning_stats = cleaner.get_cleaning_stats(all_raw_documents, cleaned_documents)
-    # print(f"[PIPELINE] Cleaned documents: {len(cleaned_documents)}")
-    # print(f"[PIPELINE] Cleaning stats: {cleaning_stats}")
-
-    # # 3) Chunk
-    # chunker = Chunker()
-    # chunked_documents = chunker.chunk_documents(cleaned_documents)
-    # print(f"[PIPELINE] Chunked documents: {len(chunked_documents)}")
-
-    # # 4) Embed + Persist to Chroma (write with explicit collection name)
     embedder = Embedder()
     persist_abs = os.path.abspath(PERSIST_DIR)
-    # chroma_db_embedder = ChromaDBEmbedder(persist_directory=persist_abs)
-    # chroma_vectorstore = chroma_db_embedder.store_embeddings(
-    #     embedder,
-    #     chunked_documents,
-    #     collection_name=COLLECTION_NAME
-    # )
-    # print(f"[CHROMADB] Embeddings stored and collection persisted at: {persist_abs}")
-
-    # 5) Reopen same collection with same embedding instance (critical)
     vs = load_chroma(persist_abs, embedder.embedder, COLLECTION_NAME)
     try:
-        # Internal count to validate vectors exist
-        cnt = vs._collection.count()
-        print(f"[DEBUG] Reopened collection count: {cnt}")
+        print(f"[DEBUG] Reopened collection count: {vs._collection.count()}")
     except Exception:
-        print("[DEBUG] Could not read collection count (non-fatal).")  # best-effort only
+        pass
 
-    # 6) Retrieve with CrossEncoder rerank + ChatGroq answer
-    pool_k = int(os.getenv("RETRIEVER_POOL_K", POOL_K))
-    top_k = int(os.getenv("RETRIEVER_TOP_K", TOP_K))
+    crc = CRC(
+        crc_prompt_path=os.getenv("CRC_PROMPT", "prompts/crc_prompts.json"),
+        chroma=vs,
+        crossencoder_model=CROSSENCODER_MODEL,
+        pool_k=POOL_K,
+        top_k=TOP_K,
+    )
 
-    # Follow-up chat loop with conversational context
     chat_history = []
-    print("\n[CHAT] Ask questions about your data. Type 'exit' to quit.\n")
+    print("\n[CHAT] Ask your shopping questions. Type 'exit' to quit.\n")
     while True:
         user_q = input("Enter your query: ").strip()
         if user_q.lower() in {"exit", "quit"}:
-            print("[CHAT] Exiting chat loop.")
+            print("[CHAT] Bye.")
             break
 
-        # Retrieve fresh context per turn
-        docs = retrieve_with_crossencoder_rerank(
-            query=user_q,
-            chroma=vs,
-            crossencoder_model=CROSSENCODER_MODEL,
-            pool_k=pool_k,
-            top_k=top_k,
-        )
-        print(f"[RETRIEVER] Reranked docs: {len(docs)}")
-        if not docs:
-            print("[WARN] No docs retrieved. Confirm collection path/name and embedding instance are consistent.")
-
-        # Provide conversation context to the LLM along with retrieved context
-        history_block = format_history(chat_history)
-        question_with_history = (
-            f"{user_q}\n\n"
-            f"(Conversation so far, for context):\n{history_block}" if history_block else user_q
-        )
-
-        answer = chatgroq_answer(question_with_history, docs, model="openai/gpt-oss-120b", temperature=0.0)
-        print("\n[ANSWER]\n", answer)
+        out = crc.invoke(question=user_q, history=chat_history)
+        print("\n[ANSWER]\n", out["answer"])
         print("\n[SOURCES]")
-        for i, d in enumerate(docs):
-            print(f"{i+1}. {d.metadata}")
-        print("\n")  # spacer for readability
+        if out["docs"]:
+            for i, d in enumerate(out["docs"]):
+                print(f"{i+1}. {d.metadata}")
+        else:
+            print("-")
 
-        # Update in-memory history
         chat_history.append({"role": "user", "content": user_q})
-        chat_history.append({"role": "assistant", "content": answer})
-
-    print("[PIPELINE] Pipeline run completed (all stages)")
-
+        chat_history.append({"role": "assistant", "content": out["answer"]})
 
 if __name__ == "__main__":
     main()
