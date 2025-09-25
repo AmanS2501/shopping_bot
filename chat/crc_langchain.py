@@ -16,7 +16,7 @@ from retrieval.simple_retriever import load_chroma, retrieve_with_crossencoder_r
 
 CHAT_MODEL = os.getenv("CHAT_MODEL", "openai/gpt-oss-120b")
 
-def _groq(temp=0.2, max_tokens=256):
+def _groq(temp=0.2, max_tokens=800):
     return ChatGroq(model=CHAT_MODEL, temperature=temp, top_p=0.8, max_tokens=max_tokens, frequency_penalty=0.2)
 
 def _format_history(history: List[dict], max_chars: int = 4000) -> str:
